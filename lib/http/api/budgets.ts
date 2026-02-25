@@ -1,3 +1,4 @@
+import { cacheLife, cacheTag } from 'next/cache';
 import { buildQuery } from '../build-query';
 import { apiFetch } from '../apiFetch';
 import type {
@@ -6,14 +7,14 @@ import type {
   UpdateBudgetRequest,
   BudgetListParams,
 } from '@/types';
-import { cacheTag } from 'next/cache';
 import { REVALIDATE_TAGS } from '@/lib/revalidate-tags';
 
 const BASE = 'budgets';
 
 export async function listBudgets(params?: BudgetListParams) {
-  'use cache';
+  'use cache: private';
   cacheTag(REVALIDATE_TAGS.budgets);
+  cacheLife({ stale: 60 });
   const query = buildQuery(params);
   return apiFetch<{ data: BudgetResponse[] }>(`${BASE}${query}`);
 }

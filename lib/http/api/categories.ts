@@ -1,17 +1,18 @@
+import { cacheLife, cacheTag } from 'next/cache';
 import { apiFetch } from '../apiFetch';
 import type {
   CategoryResponse,
   CreateCategoryRequest,
   UpdateCategoryRequest,
 } from '@/types';
-import { cacheTag } from 'next/cache';
 import { REVALIDATE_TAGS } from '@/lib/revalidate-tags';
 
 const BASE = 'categories';
 
 export async function listCategories(type?: 'INCOME' | 'EXPENSE') {
-  'use cache';
+  'use cache: private';
   cacheTag(REVALIDATE_TAGS.categories);
+  cacheLife({ stale: 60 });
   const params = type ? `?type=${type}` : '';
   return apiFetch<{ data: CategoryResponse[] }>(`${BASE}${params}`);
 }

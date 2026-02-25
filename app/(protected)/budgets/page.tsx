@@ -9,8 +9,10 @@ import {
   updateBudgetAction,
   deleteBudgetAction,
 } from "./actions";
+import { cookies } from "next/headers";
 
 export default async function BudgetsPage() {
+  await cookies()
   const now = new Date();
   const month = now.getMonth() + 1;
   const year = now.getFullYear();
@@ -40,11 +42,11 @@ export default async function BudgetsPage() {
         />
       </PageHeader>
       <BudgetsList
-          budgets={budgets}
-          expenseCategories={expenseCategories}
-          updateAction={updateBudgetAction}
-          deleteAction={deleteBudgetAction}
-        />
+        budgets={budgets}
+        expenseCategories={expenseCategories}
+        updateAction={updateBudgetAction}
+        deleteAction={deleteBudgetAction}
+      />
     </div>
   );
 }

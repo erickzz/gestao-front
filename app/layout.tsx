@@ -1,4 +1,5 @@
 import type { Metadata, Viewport } from 'next'
+import { Suspense } from 'react'
 import { Inter, DM_Sans } from 'next/font/google'
 import { QueryProvider } from './components/providers/query-provider'
 import './globals.css'
@@ -41,7 +42,11 @@ export default function RootLayout({
     return (
         <html lang="pt-BR" suppressHydrationWarning>
             <body className={`${_inter.variable} ${_dmSans.variable} font-sans antialiased`} suppressHydrationWarning>
-                <QueryProvider>{children}</QueryProvider>
+                <QueryProvider>
+                    <Suspense fallback={null}>
+                        {children}
+                    </Suspense>
+                </QueryProvider>
             </body>
         </html>
     )

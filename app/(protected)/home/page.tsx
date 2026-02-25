@@ -2,8 +2,10 @@ import { getAggregated } from "@/lib/http/api/dashboard";
 import { listTransactions } from "@/lib/http/api/transactions";
 import { getMonthRange } from "@/lib/utils/format";
 import { HomeContent } from "@/app/components/dashboard/home-content";
+import { cookies } from "next/headers";
 
 export default async function DashboardPage() {
+  await cookies()
   const now = new Date();
   const month = now.getMonth() + 1;
   const year = now.getFullYear();
