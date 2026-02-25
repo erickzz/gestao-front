@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from 'next'
 import { Suspense } from 'react'
 import { Inter, DM_Sans } from 'next/font/google'
 import { QueryProvider } from './components/providers/query-provider'
+import { Toaster } from '@/components/ui/sonner'
 import './globals.css'
 
 const _inter = Inter({ subsets: ["latin"], variable: "--font-inter" });
@@ -46,6 +47,7 @@ export default function RootLayout({
                     <Suspense fallback={null}>
                         {children}
                     </Suspense>
+                    <Toaster />
                 </QueryProvider>
             </body>
         </html>

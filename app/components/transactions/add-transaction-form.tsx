@@ -1,12 +1,35 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { toast } from "sonner";
+
 import type { CategoryResponse, PaymentMethodItem } from "@/types";
+import {
+  createTransactionSchema,
+  type CreateTransactionFormInput,
+} from "@/app/(protected)/transactions/transaction-schema";
+import type { CreateTransactionResult } from "@/app/(protected)/transactions/actions";
+import { valuesToFormData, setServerErrors } from "@/lib/utils/form";
 import { Button } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
-import type { CreateTransactionResult } from "@/app/(protected)/transactions/actions";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface AddTransactionFormProps {
   createAction: (
@@ -28,158 +51,248 @@ export function AddTransactionForm({
   onSuccess,
   onCancel,
 }: AddTransactionFormProps) {
-  const [state, formAction] = useActionState(createAction, null);
-  const [type, setType] = useState<"INCOME" | "EXPENSE">("EXPENSE");
-
-  const filteredCategories = categories.filter((c) => c.type === type);
-
-  useEffect(() => {
-    if (state?.success && onSuccess) {
-      onSuccess();
-    }
-  }, [state?.success, onSuccess]);
+  const [apiError, setApiError] = useState<string | null>(null);
 
   const today = defaultDate ?? new Date().toISOString().split("T")[0];
 
+  const form = useForm<CreateTransactionFormInput>({
+    resolver: zodResolver(createTransactionSchema),
+    defaultValues: {
+      type: "EXPENSE",
+      categoryId: "",
+      value: 0,
+      date: today,
+      paymentMethod: undefined,
+      description: "",
+      subcategory: "",
+      status: "PAID",
+    },
+  });
+
+  const type = form.watch("type");
+  const filteredCategories = categories.filter((c) => c.type === type);
+
+  useEffect(() => {
+    const currentCategoryId = form.getValues("categoryId");
+    const isValidForType = filteredCategories.some((c) => c.id === currentCategoryId);
+    if (currentCategoryId && !isValidForType) {
+      form.setValue("categoryId", "");
+    }
+  }, [type, filteredCategories, form]);
+
+  async function onSubmit(values: CreateTransactionFormInput) {
+    setApiError(null);
+    form.clearErrors();
+
+    const formData = valuesToFormData(values);
+    const result = await createAction(null, formData);
+
+    if (result.success) {
+      toast.success("Transação criada com sucesso");
+      onSuccess?.();
+    } else {
+      if (result.errors) setServerErrors(form, result.errors);
+      if (result.message) {
+        setApiError(result.message);
+        toast.error(result.message);
+      }
+    }
+  }
+
   return (
-    <form action={formAction} className="space-y-4">
-      {state && !state.success && state.message && (
-        <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-          {state.message}
-        </p>
-      )}
-      <div className="space-y-2">
-        <Label htmlFor="type">Tipo</Label>
-        <select
-          id="type"
+    <Form {...form}>
+      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+        {apiError && (
+          <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+            {apiError}
+          </p>
+        )}
+
+        <FormField
+          control={form.control}
           name="type"
-          required
-          value={type}
-          onChange={(e) => setType(e.target.value as "INCOME" | "EXPENSE")}
-          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <option value="EXPENSE">Despesa</option>
-          <option value="INCOME">Receita</option>
-        </select>
-        {state?.errors?.type?._errors?.[0] && (
-          <p className="text-sm text-destructive">{state.errors.type._errors[0]}</p>
-        )}
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="categoryId">Categoria</Label>
-        <select
-          id="categoryId"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Tipo</FormLabel>
+              <Select
+                onValueChange={field.onChange}
+                value={field.value}
+              >
+                <FormControl>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="EXPENSE">Despesa</SelectItem>
+                  <SelectItem value="INCOME">Receita</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
           name="categoryId"
-          required
-          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <option value="">Selecione...</option>
-          {filteredCategories.map((cat) => (
-            <option key={cat.id} value={cat.id}>
-              {cat.name}
-            </option>
-          ))}
-        </select>
-        {state?.errors?.categoryId?._errors?.[0] && (
-          <p className="text-sm text-destructive">
-            {state.errors.categoryId._errors[0]}
-          </p>
-        )}
-      </div>
-      <div className="grid grid-cols-2 gap-4">
-        <div className="space-y-2">
-          <Label htmlFor="value">Valor (R$)</Label>
-          <Input
-            id="value"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Categoria</FormLabel>
+              <Select
+                onValueChange={field.onChange}
+                value={field.value || undefined}
+              >
+                <FormControl>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {filteredCategories.map((cat) => (
+                    <SelectItem key={cat.id} value={cat.id}>
+                      {cat.name}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <div className="grid grid-cols-2 gap-4">
+          <FormField
+            control={form.control}
             name="value"
-            type="number"
-            min="0.01"
-            step="0.01"
-            placeholder="0,00"
-            required
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Valor (R$)</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    placeholder="0,00"
+                    {...field}
+                    onChange={(e) =>
+                      field.onChange(parseFloat(e.target.value) || 0)
+                    }
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-          {state?.errors?.value?._errors?.[0] && (
-            <p className="text-sm text-destructive">
-              {state.errors.value._errors[0]}
-            </p>
-          )}
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="date">Data</Label>
-          <Input
-            id="date"
+
+          <FormField
+            control={form.control}
             name="date"
-            type="date"
-            defaultValue={today}
-            required
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Data</FormLabel>
+                <FormControl>
+                  <Input type="date" {...field} />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
           />
-          {state?.errors?.date?._errors?.[0] && (
-            <p className="text-sm text-destructive">
-              {state.errors.date._errors[0]}
-            </p>
-          )}
         </div>
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="paymentMethod">Forma de pagamento</Label>
-        <select
-          id="paymentMethod"
+
+        <FormField
+          control={form.control}
           name="paymentMethod"
-          required
-          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <option value="">Selecione...</option>
-          {paymentMethods.map((pm) => (
-            <option key={pm.value} value={pm.value}>
-              {pm.label}
-            </option>
-          ))}
-        </select>
-        {state?.errors?.paymentMethod?._errors?.[0] && (
-          <p className="text-sm text-destructive">
-            {state.errors.paymentMethod._errors[0]}
-          </p>
-        )}
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="description">Descrição</Label>
-        <Input
-          id="description"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Forma de pagamento</FormLabel>
+              <Select
+                onValueChange={field.onChange}
+                value={field.value || undefined}
+              >
+                <FormControl>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  {paymentMethods.map((pm) => (
+                    <SelectItem key={pm.value} value={pm.value}>
+                      {pm.label}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <FormField
+          control={form.control}
           name="description"
-          placeholder="Ex: Supermercado, Salário..."
-          required
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Descrição</FormLabel>
+              <FormControl>
+                <Input
+                  placeholder="Ex: Supermercado, Salário..."
+                  {...field}
+                />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
         />
-        {state?.errors?.description?._errors?.[0] && (
-          <p className="text-sm text-destructive">
-            {state.errors.description._errors[0]}
-          </p>
-        )}
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="subcategory">Subcategoria (opcional)</Label>
-        <Input
-          id="subcategory"
+
+        <FormField
+          control={form.control}
           name="subcategory"
-          placeholder="Ex: Alimentação básica"
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Subcategoria (opcional)</FormLabel>
+              <FormControl>
+                <Input placeholder="Ex: Alimentação básica" {...field} />
+              </FormControl>
+              <FormMessage />
+            </FormItem>
+          )}
         />
-      </div>
-      <div className="space-y-2">
-        <Label htmlFor="status">Status</Label>
-        <select
-          id="status"
+
+        <FormField
+          control={form.control}
           name="status"
-          className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-        >
-          <option value="PAID">Pago</option>
-          <option value="PENDING">Pendente</option>
-        </select>
-      </div>
-      <DialogFooter>
-        <Button type="button" variant="outline" onClick={onCancel}>
-          Cancelar
-        </Button>
-        <Button type="submit">Criar</Button>
-      </DialogFooter>
-    </form>
+          render={({ field }) => (
+            <FormItem>
+              <FormLabel>Status</FormLabel>
+              <Select
+                onValueChange={field.onChange}
+                value={field.value}
+              >
+                <FormControl>
+                  <SelectTrigger className="w-full">
+                    <SelectValue placeholder="Selecione..." />
+                  </SelectTrigger>
+                </FormControl>
+                <SelectContent>
+                  <SelectItem value="PAID">Pago</SelectItem>
+                  <SelectItem value="PENDING">Pendente</SelectItem>
+                </SelectContent>
+              </Select>
+              <FormMessage />
+            </FormItem>
+          )}
+        />
+
+        <DialogFooter>
+          <Button type="button" variant="outline" onClick={onCancel}>
+            Cancelar
+          </Button>
+          <Button type="submit" disabled={form.formState.isSubmitting}>
+            {form.formState.isSubmitting ? "Criando..." : "Criar"}
+          </Button>
+        </DialogFooter>
+      </form>
+    </Form>
   );
 }

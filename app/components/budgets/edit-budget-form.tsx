@@ -1,11 +1,36 @@
 "use client";
 
-import { useActionState, useEffect, useState } from "react";
+import { useState } from "react";
+import { useForm } from "react-hook-form";
+import { zodResolver } from "@hookform/resolvers/zod";
+import { toast } from "sonner";
+
 import type { BudgetResponse, CategoryResponse } from "@/types";
+import { budgetSchema, type BudgetFormInput } from "@/app/(protected)/budgets/budget-schema";
+import type {
+  CreateBudgetResult,
+  DeleteBudgetResult,
+} from "@/app/(protected)/budgets/actions";
+import { valuesToFormData, setServerErrors } from "@/lib/utils/form";
+import { MONTHS } from "@/lib/constants/months";
 import { Button } from "@/components/ui/button";
 import { DialogFooter } from "@/components/ui/dialog";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
+import {
+  Form,
+  FormControl,
+  FormField,
+  FormItem,
+  FormLabel,
+  FormMessage,
+} from "@/components/ui/form";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import {
   AlertDialog,
   AlertDialogCancel,
@@ -15,11 +40,6 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { MONTHS } from "@/lib/constants/months";
-import type {
-  CreateBudgetResult,
-  DeleteBudgetResult,
-} from "@/app/(protected)/budgets/actions";
 
 interface EditBudgetFormProps {
   budget: BudgetResponse;
@@ -44,126 +64,191 @@ export function EditBudgetForm({
   onSuccess,
   onCancel,
 }: EditBudgetFormProps) {
-  const [updateState, updateFormAction] = useActionState(updateAction, null);
-  const [deleteState, deleteFormAction] = useActionState(deleteAction, null);
+  const [updateError, setUpdateError] = useState<string | null>(null);
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
+  const [deleteError, setDeleteError] = useState<string | null>(null);
+  const [isDeleting, setIsDeleting] = useState(false);
 
-  useEffect(() => {
-    if (updateState?.success && onSuccess) {
-      onSuccess();
+  const form = useForm<BudgetFormInput>({
+    resolver: zodResolver(budgetSchema),
+    defaultValues: {
+      categoryId: budget.categoryId,
+      month: budget.month,
+      year: budget.year,
+      limit: budget.limit,
+    },
+  });
+
+  async function onSubmit(values: BudgetFormInput) {
+    setUpdateError(null);
+    form.clearErrors();
+
+    const formData = valuesToFormData(values);
+    formData.set("id", budget.id);
+    const result = await updateAction(null, formData);
+
+    if (result.success) {
+      toast.success("Orçamento atualizado com sucesso");
+      onSuccess?.();
+    } else {
+      if (result.errors) setServerErrors(form, result.errors);
+      if (result.message) {
+        setUpdateError(result.message);
+        toast.error(result.message);
+      }
     }
-  }, [updateState?.success, onSuccess]);
+  }
 
-  useEffect(() => {
-    if (deleteState?.success && onSuccess) {
+  async function handleDelete() {
+    setDeleteError(null);
+    setIsDeleting(true);
+
+    const formData = new FormData();
+    formData.set("id", budget.id);
+    const result = await deleteAction(null, formData);
+
+    if (result.success) {
+      toast.success("Orçamento excluído com sucesso");
       setDeleteDialogOpen(false);
-      onSuccess();
+      onSuccess?.();
+    } else {
+      const errorMsg = result.message ?? "Erro ao excluir";
+      setDeleteError(errorMsg);
+      toast.error(errorMsg);
     }
-  }, [deleteState?.success, onSuccess]);
+    setIsDeleting(false);
+  }
 
   return (
     <>
-      <form action={updateFormAction} className="space-y-4">
-        <input type="hidden" name="id" value={budget.id} />
-        {updateState && !updateState.success && updateState.message && (
-          <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {updateState.message}
-          </p>
-        )}
-        <div className="space-y-2">
-          <Label htmlFor="edit-categoryId">Categoria</Label>
-          <select
-            id="edit-categoryId"
+      <Form {...form}>
+        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+          {updateError && (
+            <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
+              {updateError}
+            </p>
+          )}
+
+          <FormField
+            control={form.control}
             name="categoryId"
-            required
-            defaultValue={budget.categoryId}
-            className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-          >
-            <option value="">Selecione...</option>
-            {expenseCategories.map((cat) => (
-              <option key={cat.id} value={cat.id}>
-                {cat.name}
-              </option>
-            ))}
-          </select>
-          {updateState?.errors?.categoryId?._errors?.[0] && (
-            <p className="text-sm text-destructive">
-              {updateState.errors.categoryId._errors[0]}
-            </p>
-          )}
-        </div>
-        <div className="grid grid-cols-2 gap-4">
-          <div className="space-y-2">
-            <Label htmlFor="edit-month">Mês</Label>
-            <select
-              id="edit-month"
-              name="month"
-              required
-              defaultValue={budget.month}
-              className="flex h-9 w-full rounded-md border border-input bg-transparent px-3 py-1 text-sm shadow-xs transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
-            >
-              {MONTHS.map((m) => (
-                <option key={m.value} value={m.value}>
-                  {m.label}
-                </option>
-              ))}
-            </select>
-            {updateState?.errors?.month?._errors?.[0] && (
-              <p className="text-sm text-destructive">
-                {updateState.errors.month._errors[0]}
-              </p>
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Categoria</FormLabel>
+                <Select
+                  onValueChange={field.onChange}
+                  value={field.value || undefined}
+                >
+                  <FormControl>
+                    <SelectTrigger className="w-full">
+                      <SelectValue placeholder="Selecione..." />
+                    </SelectTrigger>
+                  </FormControl>
+                  <SelectContent>
+                    {expenseCategories.map((cat) => (
+                      <SelectItem key={cat.id} value={cat.id}>
+                        {cat.name}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <FormMessage />
+              </FormItem>
             )}
-          </div>
-          <div className="space-y-2">
-            <Label htmlFor="edit-year">Ano</Label>
-            <Input
-              id="edit-year"
-              name="year"
-              type="number"
-              min={2000}
-              max={2100}
-              defaultValue={budget.year}
-              required
-            />
-            {updateState?.errors?.year?._errors?.[0] && (
-              <p className="text-sm text-destructive">
-                {updateState.errors.year._errors[0]}
-              </p>
-            )}
-          </div>
-        </div>
-        <div className="space-y-2">
-          <Label htmlFor="edit-limit">Limite (R$)</Label>
-          <Input
-            id="edit-limit"
-            name="limit"
-            type="number"
-            min={0}
-            step="0.01"
-            placeholder="0,00"
-            defaultValue={budget.limit}
-            required
           />
-          {updateState?.errors?.limit?._errors?.[0] && (
-            <p className="text-sm text-destructive">
-              {updateState.errors.limit._errors[0]}
-            </p>
-          )}
-        </div>
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={onCancel}>
-            Cancelar
-          </Button>
-          <Button
-            type="button"
-            variant="destructive"
-            onClick={() => setDeleteDialogOpen(true)}
-          >
-            Excluir
-          </Button>
-          <Button type="submit">Salvar</Button>
-        </DialogFooter>
-      </form>
+
+          <div className="grid grid-cols-2 gap-4">
+            <FormField
+              control={form.control}
+              name="month"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Mês</FormLabel>
+                  <Select
+                    onValueChange={(v) => field.onChange(parseInt(v, 10))}
+                    value={String(field.value)}
+                  >
+                    <FormControl>
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Selecione..." />
+                      </SelectTrigger>
+                    </FormControl>
+                    <SelectContent>
+                      {MONTHS.map((m) => (
+                        <SelectItem key={m.value} value={String(m.value)}>
+                          {m.label}
+                        </SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+
+            <FormField
+              control={form.control}
+              name="year"
+              render={({ field }) => (
+                <FormItem>
+                  <FormLabel>Ano</FormLabel>
+                  <FormControl>
+                    <Input
+                      type="number"
+                      min={2000}
+                      max={2100}
+                      {...field}
+                      onChange={(e) =>
+                        field.onChange(parseInt(e.target.value, 10) || 0)
+                      }
+                    />
+                  </FormControl>
+                  <FormMessage />
+                </FormItem>
+              )}
+            />
+          </div>
+
+          <FormField
+            control={form.control}
+            name="limit"
+            render={({ field }) => (
+              <FormItem>
+                <FormLabel>Limite (R$)</FormLabel>
+                <FormControl>
+                  <Input
+                    type="number"
+                    min={0}
+                    step="0.01"
+                    placeholder="0,00"
+                    {...field}
+                    onChange={(e) =>
+                      field.onChange(parseFloat(e.target.value) || 0)
+                    }
+                  />
+                </FormControl>
+                <FormMessage />
+              </FormItem>
+            )}
+          />
+
+          <DialogFooter>
+            <Button type="button" variant="outline" onClick={onCancel}>
+              Cancelar
+            </Button>
+            <Button
+              type="button"
+              variant="destructive"
+              onClick={() => setDeleteDialogOpen(true)}
+            >
+              Excluir
+            </Button>
+            <Button type="submit" disabled={form.formState.isSubmitting}>
+              {form.formState.isSubmitting ? "Salvando..." : "Salvar"}
+            </Button>
+          </DialogFooter>
+        </form>
+      </Form>
 
       <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
         <AlertDialogContent>
@@ -173,22 +258,23 @@ export function EditBudgetForm({
               Tem certeza? Esta ação não pode ser desfeita.
             </AlertDialogDescription>
           </AlertDialogHeader>
-          {deleteState && !deleteState.success && deleteState.message && (
+          {deleteError && (
             <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              {deleteState.message}
+              {deleteError}
             </p>
           )}
-          <form action={deleteFormAction}>
-            <input type="hidden" name="id" value={budget.id} />
-            <AlertDialogFooter>
-              <AlertDialogCancel type="button">
-                Cancelar
-              </AlertDialogCancel>
-              <Button type="submit" variant="destructive">
-                Excluir
-              </Button>
-            </AlertDialogFooter>
-          </form>
+          <AlertDialogFooter>
+            <AlertDialogCancel type="button">
+              Cancelar
+            </AlertDialogCancel>
+            <Button
+              variant="destructive"
+              onClick={handleDelete}
+              disabled={isDeleting}
+            >
+              {isDeleting ? "Excluindo..." : "Excluir"}
+            </Button>
+          </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
     </>
