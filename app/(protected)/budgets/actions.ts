@@ -1,0 +1,135 @@
+"use server";
+
+import { revalidateTag } from "next/cache";
+import {
+  createBudget,
+  updateBudget,
+  deleteBudget,
+} from "@/lib/http/api/budgets";
+import { parseFormData } from "@/lib/utils/form";
+import { REVALIDATE_TAGS } from "@/lib/revalidate-tags";
+import { budgetSchema } from "./budget-schema";
+
+export type CreateBudgetResult = {
+  success: boolean;
+  message: string;
+  errors: Record<string, { _errors: string[] }> | null;
+};
+
+export type DeleteBudgetResult = {
+  success: boolean;
+  message: string;
+};
+
+export async function createBudgetAction(
+  _prevState: CreateBudgetResult | null,
+  formData: FormData,
+): Promise<CreateBudgetResult> {
+  const result = budgetSchema.safeParse(parseFormData(formData));
+
+  if (!result.success) {
+    return {
+      success: false,
+      message: "Erro de validação",
+      errors: result.error.format() as unknown as Record<string, { _errors: string[] }>,
+    };
+  } 
+
+  try {
+    await createBudget(result.data);
+    revalidateTag(REVALIDATE_TAGS.budgets, "max");
+    return { success: true, message: "Orçamento criado", errors: null };
+  } catch (err) {
+    if (err instanceof Error && "response" in err) {
+      const res = (err as { response: Response }).response;
+      const body = await res.json().catch(() => ({}));
+      return {
+        success: false,
+        message: (body as { message?: string }).message ?? "Erro na requisição",
+        errors: null,
+      };
+    }
+    return {
+      success: false,
+      message:
+        "Um erro inesperado aconteceu. Tente novamente em alguns instantes.",
+      errors: null,
+    };
+  }
+}
+
+export async function updateBudgetAction(
+  _prevState: CreateBudgetResult | null,
+  formData: FormData,
+): Promise<CreateBudgetResult> {
+  const id = formData.get("id");
+  if (typeof id !== "string" || !id) {
+    return {
+      success: false,
+      message: "ID do orçamento é obrigatório",
+      errors: null,
+    };
+  }
+
+  const result = budgetSchema.safeParse(parseFormData(formData));
+
+  if (!result.success) {
+    return {
+      success: false,
+      message: "Erro de validação",
+      errors: result.error.format() as unknown as Record<string, { _errors: string[] }>,
+    };
+  }
+
+  try {
+    await updateBudget(id, result.data);
+    revalidateTag(REVALIDATE_TAGS.budgets, "max");
+    return { success: true, message: "Orçamento atualizado", errors: null };
+  } catch (err) {
+    if (err instanceof Error && "response" in err) {
+      const res = (err as { response: Response }).response;
+      const body = await res.json().catch(() => ({}));
+      return {
+        success: false,
+        message: (body as { message?: string }).message ?? "Erro na requisição",
+        errors: null,
+      };
+    }
+    return {
+      success: false,
+      message:
+        "Um erro inesperado aconteceu. Tente novamente em alguns instantes.",
+      errors: null,
+    };
+  }
+}
+
+export async function deleteBudgetAction(
+  _prevState: DeleteBudgetResult | null,
+  formData: FormData,
+): Promise<DeleteBudgetResult> {
+  const id = formData.get("id");
+  if (typeof id !== "string" || !id) {
+    return { success: false, message: "ID do orçamento é obrigatório" };
+  }
+
+  try {
+    await deleteBudget(id);
+    revalidateTag(REVALIDATE_TAGS.budgets, "max");
+    return { success: true, message: "Orçamento excluído" };
+  } catch (err) {
+    if (err instanceof Error && "response" in err) {
+      const res = (err as { response: Response }).response;
+      const body = await res.json().catch(() => ({}));
+      return {
+        success: false,
+        message: (body as { message?: string }).message ?? "Erro na requisição",
+      };
+    }
+    return {
+      success: false,
+      message:
+        "Um erro inesperado aconteceu. Tente novamente em alguns instantes.",
+    };
+  }
+}
