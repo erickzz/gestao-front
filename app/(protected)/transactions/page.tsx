@@ -6,7 +6,11 @@ import { getMonthRange } from "@/lib/utils/format";
 import { PageHeader } from "@/app/components/layout/page-header";
 import { AddTransactionDialog } from "@/app/components/transactions/add-transaction-dialog";
 import { TransactionsList } from "@/app/components/transactions/transactions-list";
-import { createTransactionAction } from "./actions";
+import {
+  createTransactionAction,
+  updateTransactionAction,
+  deleteTransactionAction,
+} from "./actions";
 
 interface TransactionsPageProps {
   searchParams: Promise<{ page?: string; type?: string; month?: string; year?: string }>;
@@ -58,6 +62,10 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
         transactions={transactions}
         meta={meta}
         basePath={basePath}
+        categories={categoriesRes.data}
+        paymentMethods={paymentMethodsRes.data}
+        updateAction={updateTransactionAction}
+        deleteAction={deleteTransactionAction}
       />
     </div>
   );
