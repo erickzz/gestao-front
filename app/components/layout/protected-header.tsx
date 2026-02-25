@@ -73,6 +73,13 @@ export function ProtectedHeader({ userName }: ProtectedHeaderProps) {
             >
               Orçamentos
             </Link>
+            <Link
+              href="/transactions"
+              className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors"
+              style={{ fontFamily: "var(--font-heading)" }}
+            >
+              Transações
+            </Link>
           </div>
         </div>
         <div className="flex items-center gap-2">
