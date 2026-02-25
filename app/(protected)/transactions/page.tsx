@@ -2,7 +2,7 @@ import { cookies } from "next/headers";
 import { listTransactions } from "@/lib/http/api/transactions";
 import { listCategories } from "@/lib/http/api/categories";
 import { listPaymentMethods } from "@/lib/http/api/metadata";
-import { formatMonthName, getMonthRange } from "@/lib/utils/format";
+import { getMonthRange } from "@/lib/utils/format";
 import { PageHeader } from "@/app/components/layout/page-header";
 import { AddTransactionDialog } from "@/app/components/transactions/add-transaction-dialog";
 import { TransactionsList } from "@/app/components/transactions/transactions-list";
@@ -38,7 +38,6 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
 
   const { data: transactions, meta } = transactionsRes;
 
-  const monthName = formatMonthName(month, year);
   const defaultDate = `${year}-${String(month).padStart(2, "0")}-${String(now.getDate()).padStart(2, "0")}`;
 
   const baseParams = new URLSearchParams({ month: String(month), year: String(year) });
@@ -47,10 +46,7 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
 
   return (
     <div className="mx-auto max-w-6xl space-y-6 px-4 py-6">
-      <PageHeader
-        title="Transações"
-        description={`${monthName} ${year}`}
-      >
+      <PageHeader title="Transações" month={month} year={year}>
         <AddTransactionDialog
           createAction={createTransactionAction}
           categories={categoriesRes.data}

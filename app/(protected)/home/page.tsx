@@ -1,11 +1,14 @@
+import { cookies } from "next/headers";
 import { getAggregated } from "@/lib/http/api/dashboard";
 import { listTransactions } from "@/lib/http/api/transactions";
 import { getMonthRange } from "@/lib/utils/format";
-import { HomeContent } from "@/app/components/dashboard/home-content";
-import { cookies } from "next/headers";
+import { PageHeader } from "@/app/components/layout/page-header";
+import { DashboardStats } from "@/app/components/dashboard/dashboard-stats";
+import { RecentTransactionsCard } from "@/app/components/dashboard/recent-transactions-card";
+import { BudgetStatusCard } from "@/app/components/dashboard/budget-status-card";
 
-export default async function DashboardPage() {
-  await cookies()
+export default async function HomePage() {
+  await cookies();
   const now = new Date();
   const month = now.getMonth() + 1;
   const year = now.getFullYear();
@@ -29,12 +32,13 @@ export default async function DashboardPage() {
   );
 
   return (
-    <HomeContent
-      summary={summary}
-      budgetStatus={budgetStatus}
-      transactions={transactions}
-      month={month}
-      year={year}
-    />
+    <div className="mx-auto max-w-6xl space-y-6 px-4 py-6">
+      <PageHeader title="Dashboard" month={month} year={year} />
+      <DashboardStats summary={summary} budgetStatus={budgetStatus} />
+      <div className="grid gap-4 lg:grid-cols-5">
+        <RecentTransactionsCard transactions={transactions} />
+        <BudgetStatusCard budgetStatus={budgetStatus} />
+      </div>
+    </div>
   );
 }

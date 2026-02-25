@@ -30,9 +30,10 @@ export function formatDelta(delta: number, decimals = 1): string {
 }
 
 export function formatMonthName(month: number, year: number): string {
-  return new Date(year, month - 1).toLocaleDateString(LOCALE, {
+  const name = new Date(year, month - 1).toLocaleDateString(LOCALE, {
     month: "long",
   });
+  return name.charAt(0).toUpperCase() + name.slice(1);
 }
 
 export function formatNumber(value: number, options?: Intl.NumberFormatOptions): string {
