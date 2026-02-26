@@ -1,8 +1,12 @@
 import { useState, useCallback } from "react";
 
-// eslint-disable-next-line @typescript-eslint/no-explicit-any
+interface DeleteActionResult {
+  success: boolean;
+  message?: string;
+}
+
 interface UseDeleteFlowOptions {
-  deleteAction: (prevState: any, formData: FormData) => Promise<{ success: boolean; message?: string }>;
+  deleteAction: (prevState: null, formData: FormData) => Promise<DeleteActionResult>;
   onSuccess?: () => void;
   onError?: (message: string) => void;
 }
