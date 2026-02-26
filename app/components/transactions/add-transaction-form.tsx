@@ -1,7 +1,7 @@
 "use client";
 
 import { useEffect } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 
@@ -75,7 +75,7 @@ export function AddTransactionForm({
     },
   });
 
-  const type = form.watch("type");
+  const type = useWatch({ control: form.control, name: "type" });
   const filteredCategories = categories.filter((c) => c.type === type);
 
   useEffect(() => {

@@ -1,36 +1,58 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/create-next-app).
+# Fintra (Frontend)
 
-## Getting Started
+Aplicação web em **Next.js 16** para controle financeiro pessoal.
 
-First, run the development server:
+## Setup rápido (iniciante)
+
+1. Instale **Node.js 22+**.
+2. Ative pnpm: `corepack enable`.
+3. Instale dependências: `pnpm install`.
+4. Crie `.env.local`:
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+NEXT_PUBLIC_API_URL=http://localhost:8080
+NEXT_PUBLIC_APP_URL=http://localhost:3001
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+5. Rode o projeto: `pnpm dev`.
+6. Abra `http://localhost:3001`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+## Scripts
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load Inter, a custom Google Font.
+```bash
+pnpm dev
+pnpm lint
+pnpm check-types
+pnpm build
+pnpm start
+```
 
-## Learn More
+## Estrutura (resumo)
 
-To learn more about Next.js, take a look at the following resources:
+```text
+app/
+  (public)/        # landing, login, cadastro
+  (protected)/     # áreas autenticadas
+  components/      # componentes de UI e domínio
+lib/
+  http/            # cliente HTTP e APIs
+  utils/           # utilitários
+types/             # tipos compartilhados
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+## O que simplificar no código (prioridade)
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+1. **Padronizar porta de desenvolvimento em todo o projeto**
+   - Hoje existe fallback para `3000` em auth, mas `dev` usa `3001`.
 
-## Deploy on Vercel
+2. **Adicionar `.env.example`**
+   - Reduz erros no primeiro setup.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+3. **Diminuir lógica de página em rotas grandes**
+   - Extrair parse de `searchParams` e regras de data para utilitários por feature.
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+4. **Padronizar estilo de código**
+   - Unificar aspas, ponto e vírgula e ordenação de imports com formatador único.
+
+5. **Adicionar testes leves de utilitários críticos**
+   - Principalmente em `lib/utils` e funções de transformação de parâmetros.
