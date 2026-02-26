@@ -1,6 +1,9 @@
+import { Plus } from "lucide-react";
 import { listCategories } from "@/lib/http/api/categories";
 import { PageHeader } from "@/app/components/layout/page-header";
-import { AddCategoryDialog } from "@/app/components/categories/add-category-dialog";
+import { Button } from "@/app/components/ui/button";
+import { CreateDialog } from "@/app/components/ui/create-dialog";
+import { AddCategoryForm } from "@/app/components/categories/add-category-form";
 import { CategoriesList } from "@/app/components/categories/categories-list";
 import {
   createCategoryAction,
@@ -17,7 +20,17 @@ export default async function CategoriesPage() {
         title="Categorias"
         description="Gerencie suas categorias de receitas e despesas."
       >
-        <AddCategoryDialog createAction={createCategoryAction} />
+        <CreateDialog
+          title="Nova categoria"
+          trigger={
+            <Button>
+              <Plus className="h-4 w-4" />
+              Nova categoria
+            </Button>
+          }
+        >
+          <AddCategoryForm createAction={createCategoryAction} />
+        </CreateDialog>
       </PageHeader>
       <CategoriesList
         categories={categories}

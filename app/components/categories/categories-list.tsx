@@ -1,5 +1,14 @@
 import type { CategoryResponse } from "@/types";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyMedia,
+  EmptyTitle,
+} from "@/components/ui/empty";
+import { DataList } from "@/components/ui/data-list";
+import { Folder } from "lucide-react";
 import { CategoryListItem } from "./category-list-item";
 import type {
   CreateCategoryResult,
@@ -23,31 +32,37 @@ export function CategoriesList({
   updateAction,
   deleteAction,
 }: CategoriesListProps) {
+  const emptyContent = (
+    <Empty>
+      <EmptyHeader>
+        <EmptyMedia variant="icon">
+          <Folder className="h-6 w-6" />
+        </EmptyMedia>
+        <EmptyTitle>Nenhuma categoria encontrada</EmptyTitle>
+        <EmptyDescription>
+          Crie uma categoria para começar a organizar suas receitas e despesas.
+        </EmptyDescription>
+      </EmptyHeader>
+      <EmptyContent />
+    </Empty>
+  );
+
   return (
-    <Card className="border-border/60">
-      <CardHeader className="pb-3">
-        <CardTitle className="text-sm font-semibold">
-          Todas as categorias
-        </CardTitle>
-      </CardHeader>
-      <CardContent>
-        {categories.length === 0 ? (
-          <p className="py-8 text-center text-sm text-muted-foreground">
-            Nenhuma categoria encontrada. Crie uma para começar.
-          </p>
-        ) : (
-          <div className="flex flex-wrap gap-3">
-            {categories.map((cat) => (
-              <CategoryListItem
-                key={cat.id}
-                category={cat}
-                updateAction={updateAction}
-                deleteAction={deleteAction}
-              />
-            ))}
-          </div>
-        )}
-      </CardContent>
-    </Card>
+    <DataList
+      title="Todas as categorias"
+      empty={emptyContent}
+      isEmpty={categories.length === 0}
+    >
+      <div className="flex flex-wrap gap-3">
+        {categories.map((cat) => (
+          <CategoryListItem
+            key={cat.id}
+            category={cat}
+            updateAction={updateAction}
+            deleteAction={deleteAction}
+          />
+        ))}
+      </div>
+    </DataList>
   );
 }

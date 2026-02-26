@@ -1,7 +1,10 @@
+import { Plus } from "lucide-react";
 import { listBudgets } from "@/lib/http/api/budgets";
 import { listCategories } from "@/lib/http/api/categories";
 import { PageHeader } from "@/app/components/layout/page-header";
-import { AddBudgetDialog } from "@/app/components/budgets/add-budget-dialog";
+import { Button } from "@/app/components/ui/button";
+import { CreateDialog } from "@/app/components/ui/create-dialog";
+import { AddBudgetForm } from "@/app/components/budgets/add-budget-form";
 import { BudgetsList } from "@/app/components/budgets/budgets-list";
 import {
   createBudgetAction,
@@ -28,12 +31,22 @@ export default async function BudgetsPage() {
   return (
     <div className="mx-auto max-w-6xl space-y-6 px-4 py-6">
       <PageHeader title="Orçamentos" month={month} year={year}>
-        <AddBudgetDialog
-          createAction={createBudgetAction}
-          expenseCategories={expenseCategories}
-          month={month}
-          year={year}
-        />
+        <CreateDialog
+          title="Novo orçamento"
+          trigger={
+            <Button>
+              <Plus className="h-4 w-4" />
+              Novo orçamento
+            </Button>
+          }
+        >
+          <AddBudgetForm
+            createAction={createBudgetAction}
+            expenseCategories={expenseCategories}
+            month={month}
+            year={year}
+          />
+        </CreateDialog>
       </PageHeader>
       <BudgetsList
         budgets={budgets}

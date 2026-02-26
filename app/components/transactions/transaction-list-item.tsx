@@ -1,18 +1,15 @@
 "use client";
 
-import { useState } from "react";
 import type {
   TransactionResponse,
   CategoryResponse,
   PaymentMethodItem,
 } from "@/types";
 import { formatCurrency, formatDate } from "@/lib/utils/format";
-import {
-  TableRow,
-  TableCell,
-} from "@/components/ui/table";
+import { TableCell } from "@/components/ui/table";
 import { ArrowUpRight, ArrowDownRight } from "lucide-react";
-import { EditTransactionDialog } from "./edit-transaction-dialog";
+import { EditableListItem } from "@/components/ui/editable-list-item";
+import { EditTransactionForm } from "./edit-transaction-form";
 import type {
   CreateTransactionResult,
   DeleteTransactionResult,
@@ -54,72 +51,66 @@ export function TransactionListItem({
   updateAction,
   deleteAction,
 }: TransactionListItemProps) {
-  const [open, setOpen] = useState(false);
   const isIncome = transaction.type === "INCOME";
 
   return (
-    <>
-      <TableRow
-        role="button"
-        tabIndex={0}
-        onClick={() => setOpen(true)}
-        onKeyDown={(e) => {
-          if (e.key === "Enter" || e.key === " ") {
-            e.preventDefault();
-            setOpen(true);
-          }
-        }}
-        className="cursor-pointer"
-      >
-        <TableCell className="font-medium">
-          {formatDate(transaction.date)}
-        </TableCell>
-        <TableCell>{transaction.description}</TableCell>
-        <TableCell>
-          <div className="flex items-center gap-2">
-            <div
-              className="h-2.5 w-2.5 shrink-0 rounded-full"
-              style={{ backgroundColor: transaction.category.color }}
-            />
-            {transaction.category.name}
-          </div>
-        </TableCell>
-        <TableCell>
-          <span className="capitalize text-muted-foreground">
-            {PAYMENT_LABELS[transaction.paymentMethod] ??
-              transaction.paymentMethod}
-          </span>
-        </TableCell>
-        <TableCell>
-          <span className="text-xs text-muted-foreground">
-            {STATUS_LABELS[transaction.status] ?? transaction.status}
-          </span>
-        </TableCell>
-        <TableCell className="text-right">
-          <span
-            className={`inline-flex items-center gap-1 font-semibold ${
-              isIncome ? "text-primary" : "text-destructive"
-            }`}
-          >
-            {isIncome ? (
-              <ArrowUpRight className="h-3.5 w-3.5" />
-            ) : (
-              <ArrowDownRight className="h-3.5 w-3.5" />
-            )}
-            {isIncome ? "+" : "-"}
-            {formatCurrency(transaction.value)}
-          </span>
-        </TableCell>
-      </TableRow>
-      <EditTransactionDialog
-        transaction={transaction}
-        categories={categories}
-        paymentMethods={paymentMethods}
-        updateAction={updateAction}
-        deleteAction={deleteAction}
-        open={open}
-        onOpenChange={setOpen}
-      />
-    </>
+    <EditableListItem
+      as="row"
+      dialogTitle="Editar transação"
+      renderContent={() => (
+        <>
+          <TableCell className="font-medium">
+            {formatDate(transaction.date)}
+          </TableCell>
+          <TableCell>{transaction.description}</TableCell>
+          <TableCell>
+            <div className="flex items-center gap-2">
+              <div
+                className="h-2.5 w-2.5 shrink-0 rounded-full"
+                style={{ backgroundColor: transaction.category.color }}
+              />
+              {transaction.category.name}
+            </div>
+          </TableCell>
+          <TableCell>
+            <span className="capitalize text-muted-foreground">
+              {PAYMENT_LABELS[transaction.paymentMethod] ??
+                transaction.paymentMethod}
+            </span>
+          </TableCell>
+          <TableCell>
+            <span className="text-xs text-muted-foreground">
+              {STATUS_LABELS[transaction.status] ?? transaction.status}
+            </span>
+          </TableCell>
+          <TableCell className="text-right">
+            <span
+              className={`inline-flex items-center gap-1 font-semibold ${
+                isIncome ? "text-primary" : "text-destructive"
+              }`}
+            >
+              {isIncome ? (
+                <ArrowUpRight className="h-3.5 w-3.5" />
+              ) : (
+                <ArrowDownRight className="h-3.5 w-3.5" />
+              )}
+              {isIncome ? "+" : "-"}
+              {formatCurrency(transaction.value)}
+            </span>
+          </TableCell>
+        </>
+      )}
+      renderForm={(close) => (
+        <EditTransactionForm
+          transaction={transaction}
+          categories={categories}
+          paymentMethods={paymentMethods}
+          updateAction={updateAction}
+          deleteAction={deleteAction}
+          onSuccess={close}
+          onCancel={close}
+        />
+      )}
+    />
   );
 }

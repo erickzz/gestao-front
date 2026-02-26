@@ -1,10 +1,13 @@
 import { cookies } from "next/headers";
+import { Plus } from "lucide-react";
 import { listTransactions } from "@/lib/http/api/transactions";
 import { listCategories } from "@/lib/http/api/categories";
 import { listPaymentMethods } from "@/lib/http/api/metadata";
 import { getMonthRange } from "@/lib/utils/format";
 import { PageHeader } from "@/app/components/layout/page-header";
-import { AddTransactionDialog } from "@/app/components/transactions/add-transaction-dialog";
+import { Button } from "@/app/components/ui/button";
+import { CreateDialog } from "@/app/components/ui/create-dialog";
+import { AddTransactionForm } from "@/app/components/transactions/add-transaction-form";
 import { TransactionsList } from "@/app/components/transactions/transactions-list";
 import {
   createTransactionAction,
@@ -51,12 +54,22 @@ export default async function TransactionsPage({ searchParams }: TransactionsPag
   return (
     <div className="mx-auto max-w-6xl space-y-6 px-4 py-6">
       <PageHeader title="Transações" month={month} year={year}>
-        <AddTransactionDialog
-          createAction={createTransactionAction}
-          categories={categoriesRes.data}
-          paymentMethods={paymentMethodsRes.data}
-          defaultDate={defaultDate}
-        />
+        <CreateDialog
+          title="Nova transação"
+          trigger={
+            <Button>
+              <Plus className="h-4 w-4" />
+              Nova transação
+            </Button>
+          }
+        >
+          <AddTransactionForm
+            createAction={createTransactionAction}
+            categories={categoriesRes.data}
+            paymentMethods={paymentMethodsRes.data}
+            defaultDate={defaultDate}
+          />
+        </CreateDialog>
       </PageHeader>
       <TransactionsList
         transactions={transactions}

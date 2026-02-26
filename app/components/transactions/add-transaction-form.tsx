@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useEffect } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -11,9 +11,10 @@ import {
   type CreateTransactionFormInput,
 } from "@/app/(protected)/transactions/transaction-schema";
 import type { CreateTransactionResult } from "@/app/(protected)/transactions/actions";
-import { valuesToFormData, setServerErrors } from "@/lib/utils/form";
-import { Button } from "@/components/ui/button";
-import { DialogFooter } from "@/components/ui/dialog";
+import { useFormAction } from "@/app/hooks/use-form-action";
+import { ApiErrorAlert } from "@/components/ui/api-error-alert";
+import { useCreateDialogClose } from "@/components/ui/create-dialog";
+import { FormFooter } from "@/components/ui/form-footer";
 import { Input } from "@/components/ui/input";
 import {
   Form,
@@ -30,6 +31,9 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { TransactionTypeSelect } from "./transaction-type-select";
+import { CategorySelect } from "./category-select";
+import { PaymentMethodSelect } from "./payment-method-select";
 
 interface AddTransactionFormProps {
   createAction: (
@@ -51,7 +55,9 @@ export function AddTransactionForm({
   onSuccess,
   onCancel,
 }: AddTransactionFormProps) {
-  const [apiError, setApiError] = useState<string | null>(null);
+  const dialogClose = useCreateDialogClose();
+  const handleSuccess = onSuccess ?? dialogClose ?? (() => {});
+  const handleCancel = onCancel ?? dialogClose ?? (() => {});
 
   const today = defaultDate ?? new Date().toISOString().split("T")[0];
 
@@ -80,85 +86,29 @@ export function AddTransactionForm({
     }
   }, [type, filteredCategories, form]);
 
-  async function onSubmit(values: CreateTransactionFormInput) {
-    setApiError(null);
-    form.clearErrors();
-
-    const formData = valuesToFormData(values);
-    const result = await createAction(null, formData);
-
-    if (result.success) {
+  const { submit, apiError } = useFormAction<CreateTransactionFormInput>({
+    action: createAction,
+    onSuccess: () => {
       toast.success("Transação criada com sucesso");
-      onSuccess?.();
-    } else {
-      if (result.errors) setServerErrors(form, result.errors);
-      if (result.message) {
-        setApiError(result.message);
-        toast.error(result.message);
-      }
-    }
-  }
+      handleSuccess();
+    },
+    onError: (msg) => toast.error(msg),
+  });
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        {apiError && (
-          <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {apiError}
-          </p>
-        )}
+      <form
+        onSubmit={form.handleSubmit((values) => submit(values, form))}
+        className="space-y-4"
+      >
+        {apiError && <ApiErrorAlert message={apiError} />}
 
-        <FormField
-          control={form.control}
-          name="type"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Tipo</FormLabel>
-              <Select
-                onValueChange={field.onChange}
-                value={field.value}
-              >
-                <FormControl>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Selecione..." />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  <SelectItem value="EXPENSE">Despesa</SelectItem>
-                  <SelectItem value="INCOME">Receita</SelectItem>
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
-        />
+        <TransactionTypeSelect control={form.control} name="type" />
 
-        <FormField
+        <CategorySelect
           control={form.control}
           name="categoryId"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Categoria</FormLabel>
-              <Select
-                onValueChange={field.onChange}
-                value={field.value || undefined}
-              >
-                <FormControl>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Selecione..." />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {filteredCategories.map((cat) => (
-                    <SelectItem key={cat.id} value={cat.id}>
-                      {cat.name}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
+          categories={filteredCategories}
         />
 
         <div className="grid grid-cols-2 gap-4">
@@ -200,32 +150,10 @@ export function AddTransactionForm({
           />
         </div>
 
-        <FormField
+        <PaymentMethodSelect
           control={form.control}
           name="paymentMethod"
-          render={({ field }) => (
-            <FormItem>
-              <FormLabel>Forma de pagamento</FormLabel>
-              <Select
-                onValueChange={field.onChange}
-                value={field.value || undefined}
-              >
-                <FormControl>
-                  <SelectTrigger className="w-full">
-                    <SelectValue placeholder="Selecione..." />
-                  </SelectTrigger>
-                </FormControl>
-                <SelectContent>
-                  {paymentMethods.map((pm) => (
-                    <SelectItem key={pm.value} value={pm.value}>
-                      {pm.label}
-                    </SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <FormMessage />
-            </FormItem>
-          )}
+          paymentMethods={paymentMethods}
         />
 
         <FormField
@@ -284,14 +212,12 @@ export function AddTransactionForm({
           )}
         />
 
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={onCancel}>
-            Cancelar
-          </Button>
-          <Button type="submit" disabled={form.formState.isSubmitting}>
-            {form.formState.isSubmitting ? "Criando..." : "Criar"}
-          </Button>
-        </DialogFooter>
+        <FormFooter
+          onCancel={handleCancel}
+          submitLabel="Criar"
+          loadingLabel="Criando..."
+          isSubmitting={form.formState.isSubmitting}
+        />
       </form>
     </Form>
   );

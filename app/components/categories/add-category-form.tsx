@@ -1,15 +1,15 @@
 "use client";
 
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
 
 import { categorySchema, type CategoryFormInput } from "@/app/(protected)/categories/category-schema";
 import type { CreateCategoryResult } from "@/app/(protected)/categories/actions";
-import { valuesToFormData, setServerErrors } from "@/lib/utils/form";
-import { Button } from "@/components/ui/button";
-import { DialogFooter } from "@/components/ui/dialog";
+import { useFormAction } from "@/app/hooks/use-form-action";
+import { ApiErrorAlert } from "@/components/ui/api-error-alert";
+import { useCreateDialogClose } from "@/components/ui/create-dialog";
+import { FormFooter } from "@/components/ui/form-footer";
 import { Input } from "@/components/ui/input";
 import {
   Form,
@@ -26,20 +26,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
-const COLOR_PRESETS = [
-  "#EF4444",
-  "#F59E0B",
-  "#3B82F6",
-  "#10B981",
-  "#8B5CF6",
-  "#EC4899",
-  "#6366F1",
-  "#14B8A6",
-  "#F97316",
-  "#84CC16",
-  "#6B7280",
-];
+import { CATEGORY_COLOR_PRESETS } from "@/lib/constants/colors";
 
 interface AddCategoryFormProps {
   createAction: (
@@ -55,7 +42,9 @@ export function AddCategoryForm({
   onSuccess,
   onCancel,
 }: AddCategoryFormProps) {
-  const [apiError, setApiError] = useState<string | null>(null);
+  const dialogClose = useCreateDialogClose();
+  const handleSuccess = onSuccess ?? dialogClose ?? (() => { });
+  const handleCancel = onCancel ?? dialogClose ?? (() => { });
 
   const form = useForm<CategoryFormInput>({
     resolver: zodResolver(categorySchema),
@@ -66,33 +55,22 @@ export function AddCategoryForm({
     },
   });
 
-  async function onSubmit(values: CategoryFormInput) {
-    setApiError(null);
-    form.clearErrors();
-
-    const formData = valuesToFormData(values);
-    const result = await createAction(null, formData);
-
-    if (result.success) {
+  const { submit, apiError } = useFormAction<CategoryFormInput>({
+    action: createAction,
+    onSuccess: () => {
       toast.success("Categoria criada com sucesso");
-      onSuccess?.();
-    } else {
-      if (result.errors) setServerErrors(form, result.errors);
-      if (result.message) {
-        setApiError(result.message);
-        toast.error(result.message);
-      }
-    }
-  }
+      handleSuccess();
+    },
+    onError: (msg) => toast.error(msg),
+  });
 
   return (
     <Form {...form}>
-      <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        {apiError && (
-          <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-            {apiError}
-          </p>
-        )}
+      <form
+        onSubmit={form.handleSubmit((values) => submit(values, form))}
+        className="space-y-4"
+      >
+        {apiError && <ApiErrorAlert message={apiError} />}
 
         <FormField
           control={form.control}
@@ -123,7 +101,7 @@ export function AddCategoryForm({
                   onChange={(e) => field.onChange(e.target.value)}
                 />
                 <div className="flex flex-wrap gap-2">
-                  {COLOR_PRESETS.map((color) => (
+                  {CATEGORY_COLOR_PRESETS.map((color) => (
                     <button
                       key={color}
                       type="button"
@@ -166,14 +144,12 @@ export function AddCategoryForm({
           )}
         />
 
-        <DialogFooter>
-          <Button type="button" variant="outline" onClick={onCancel}>
-            Cancelar
-          </Button>
-          <Button type="submit" disabled={form.formState.isSubmitting}>
-            {form.formState.isSubmitting ? "Criando..." : "Criar"}
-          </Button>
-        </DialogFooter>
+        <FormFooter
+          onCancel={handleCancel}
+          submitLabel="Criar"
+          loadingLabel="Criando..."
+          isSubmitting={form.formState.isSubmitting}
+        />
       </form>
     </Form>
   );

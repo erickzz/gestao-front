@@ -1,6 +1,5 @@
 "use client";
 
-import { useState } from "react";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { toast } from "sonner";
@@ -18,9 +17,12 @@ import type {
   CreateTransactionResult,
   DeleteTransactionResult,
 } from "@/app/(protected)/transactions/actions";
-import { valuesToFormData, setServerErrors } from "@/lib/utils/form";
+import { useFormAction } from "@/app/hooks/use-form-action";
+import { useDeleteFlow } from "@/app/hooks/use-delete-flow";
+import { ApiErrorAlert } from "@/components/ui/api-error-alert";
 import { Button } from "@/components/ui/button";
-import { DialogFooter } from "@/components/ui/dialog";
+import { DeleteConfirmDialog } from "@/components/ui/delete-confirm-dialog";
+import { FormFooter } from "@/components/ui/form-footer";
 import { Input } from "@/components/ui/input";
 import {
   Form,
@@ -37,15 +39,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import {
-  AlertDialog,
-  AlertDialogCancel,
-  AlertDialogContent,
-  AlertDialogDescription,
-  AlertDialogFooter,
-  AlertDialogHeader,
-  AlertDialogTitle,
-} from "@/components/ui/alert-dialog";
+import { CategorySelect } from "./category-select";
+import { PaymentMethodSelect } from "./payment-method-select";
 
 interface EditTransactionFormProps {
   transaction: TransactionResponse;
@@ -72,11 +67,6 @@ export function EditTransactionForm({
   onSuccess,
   onCancel,
 }: EditTransactionFormProps) {
-  const [updateError, setUpdateError] = useState<string | null>(null);
-  const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
-  const [deleteError, setDeleteError] = useState<string | null>(null);
-  const [isDeleting, setIsDeleting] = useState(false);
-
   const filteredCategories = categories.filter((c) => c.type === transaction.type);
   const dateValue = transaction.date.split("T")[0];
 
@@ -93,55 +83,40 @@ export function EditTransactionForm({
     },
   });
 
-  async function onSubmit(values: UpdateTransactionFormInput) {
-    setUpdateError(null);
-    form.clearErrors();
-
-    const formData = valuesToFormData(values);
-    formData.set("id", transaction.id);
-    const result = await updateAction(null, formData);
-
-    if (result.success) {
+  const { submit, apiError } = useFormAction<UpdateTransactionFormInput>({
+    action: updateAction,
+    onSuccess: () => {
       toast.success("Transação atualizada com sucesso");
       onSuccess?.();
-    } else {
-      if (result.errors) setServerErrors(form, result.errors);
-      if (result.message) {
-        setUpdateError(result.message);
-        toast.error(result.message);
-      }
-    }
-  }
+    },
+    onError: (msg) => toast.error(msg),
+  });
 
-  async function handleDelete() {
-    setDeleteError(null);
-    setIsDeleting(true);
-
-    const formData = new FormData();
-    formData.set("id", transaction.id);
-    const result = await deleteAction(null, formData);
-
-    if (result.success) {
+  const {
+    deleteDialogOpen,
+    setDeleteDialogOpen,
+    deleteError,
+    isDeleting,
+    handleDelete,
+  } = useDeleteFlow({
+    deleteAction,
+    onSuccess: () => {
       toast.success("Transação excluída com sucesso");
-      setDeleteDialogOpen(false);
       onSuccess?.();
-    } else {
-      const errorMsg = result.message ?? "Erro ao excluir";
-      setDeleteError(errorMsg);
-      toast.error(errorMsg);
-    }
-    setIsDeleting(false);
-  }
+    },
+    onError: (msg) => toast.error(msg),
+  });
 
   return (
     <>
       <Form {...form}>
-        <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-          {updateError && (
-            <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              {updateError}
-            </p>
+        <form
+          onSubmit={form.handleSubmit((values) =>
+            submit(values, form, { id: transaction.id })
           )}
+          className="space-y-4"
+        >
+          {apiError && <ApiErrorAlert message={apiError} />}
 
           <div className="space-y-2">
             <FormLabel>Tipo</FormLabel>
@@ -150,32 +125,10 @@ export function EditTransactionForm({
             </p>
           </div>
 
-          <FormField
+          <CategorySelect
             control={form.control}
             name="categoryId"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Categoria</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  value={field.value || undefined}
-                >
-                  <FormControl>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Selecione..." />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {filteredCategories.map((cat) => (
-                      <SelectItem key={cat.id} value={cat.id}>
-                        {cat.name}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
+            categories={filteredCategories}
           />
 
           <div className="grid grid-cols-2 gap-4">
@@ -216,32 +169,10 @@ export function EditTransactionForm({
             />
           </div>
 
-          <FormField
+          <PaymentMethodSelect
             control={form.control}
             name="paymentMethod"
-            render={({ field }) => (
-              <FormItem>
-                <FormLabel>Forma de pagamento</FormLabel>
-                <Select
-                  onValueChange={field.onChange}
-                  value={field.value || undefined}
-                >
-                  <FormControl>
-                    <SelectTrigger className="w-full">
-                      <SelectValue placeholder="Selecione..." />
-                    </SelectTrigger>
-                  </FormControl>
-                  <SelectContent>
-                    {paymentMethods.map((pm) => (
-                      <SelectItem key={pm.value} value={pm.value}>
-                        {pm.label}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-                <FormMessage />
-              </FormItem>
-            )}
+            paymentMethods={paymentMethods}
           />
 
           <FormField
@@ -297,10 +228,12 @@ export function EditTransactionForm({
             )}
           />
 
-          <DialogFooter>
-            <Button type="button" variant="outline" onClick={onCancel}>
-              Cancelar
-            </Button>
+          <FormFooter
+            onCancel={onCancel ?? (() => {})}
+            submitLabel="Salvar"
+            loadingLabel="Salvando..."
+            isSubmitting={form.formState.isSubmitting}
+          >
             <Button
               type="button"
               variant="destructive"
@@ -308,40 +241,19 @@ export function EditTransactionForm({
             >
               Excluir
             </Button>
-            <Button type="submit" disabled={form.formState.isSubmitting}>
-              {form.formState.isSubmitting ? "Salvando..." : "Salvar"}
-            </Button>
-          </DialogFooter>
+          </FormFooter>
         </form>
       </Form>
 
-      <AlertDialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <AlertDialogContent>
-          <AlertDialogHeader>
-            <AlertDialogTitle>Excluir transação?</AlertDialogTitle>
-            <AlertDialogDescription>
-              Tem certeza? Esta ação não pode ser desfeita.
-            </AlertDialogDescription>
-          </AlertDialogHeader>
-          {deleteError && (
-            <p className="rounded-md bg-destructive/10 px-3 py-2 text-sm text-destructive">
-              {deleteError}
-            </p>
-          )}
-          <AlertDialogFooter>
-            <AlertDialogCancel type="button">
-              Cancelar
-            </AlertDialogCancel>
-            <Button
-              variant="destructive"
-              onClick={handleDelete}
-              disabled={isDeleting}
-            >
-              {isDeleting ? "Excluindo..." : "Excluir"}
-            </Button>
-          </AlertDialogFooter>
-        </AlertDialogContent>
-      </AlertDialog>
+      <DeleteConfirmDialog
+        open={deleteDialogOpen}
+        onOpenChange={setDeleteDialogOpen}
+        onConfirm={() => handleDelete(transaction.id)}
+        isDeleting={isDeleting}
+        error={deleteError}
+        title="Excluir transação?"
+        description="Tem certeza? Esta ação não pode ser desfeita."
+      />
     </>
   );
 }
